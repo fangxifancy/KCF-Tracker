@@ -1,0 +1,250 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <stdio.h>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/xfeatures2d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <sl/Camera.hpp>
+#include "kcftracker.hpp"
+#include "uart.hpp"
+
+#include <dirent.h>
+
+using namespace std;
+using namespace cv;
+
+////////////////////////////////////////////////////////////////////////////
+class detector
+{
+public:
+	Point contours(Mat org, Mat dst);
+	void feature_extract(Mat img);
+	Point centre = Point(-1,-1);
+	char temp[16];
+	//Ptr<Feature2D> surf = xfeatures2d::SURF::create();
+
+};
+
+//////////////////////////////////////////////////////////////////////////////
+Point detector::contours(Mat org, Mat dst)
+{
+/*-----------draw contours--------------*/	
+	
+	vector<vector<Point>> contour;
+	vector<vector<Point>>::iterator itr;
+	findContours(org, contour, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+	itr = contour.begin();
+	while(itr!= contour.end()){
+		if(fabs(contourArea(*itr))>2000 && fabs(contourArea(*itr))<20000){
+//			c,s,a = minAreaRect(*itr);
+			itr++;
+		}
+		else itr = contour.erase(itr);
+//		cout << fabs(contourArea(cont)) << endl;
+	}
+	drawContours(dst, contour, -1, (0,0,255), 2);
+
+/*----------choose and draw box-------------*/	
+	vector<RotatedRect> box(contour.size());
+	Point2f vtx[4];
+//	Point centre;
+	vector<float> conner;
+	vector<float>::iterator itr_min,itr_maxx,itr_maxy;
+
+	for(int i=0;i<contour.size();i++){ 
+		box[i] = minAreaRect(Mat(contour[i])); //dst.size[0]:480 dst.size[1]:640
+		box[i].points(vtx);
+		for(int j=0;j<4;j++) conner.push_back(vtx[j].x);//cout<<vtx[j].x<<endl;}
+		for(int j=0;j<4;j++) conner.push_back(vtx[j].y);//cout<<vtx[j].y<<endl;}
+		itr_min = min_element(conner.begin(),conner.end());
+		itr_maxx = max_element(conner.begin(),conner.end()-5);
+		itr_maxy = max_element(conner.begin()+4,conner.end());
+//		cout << dst.cols<<", "<<dst.rows << endl;
+		if(*itr_min > 10 && *itr_maxx < dst.cols-10 && *itr_maxy < dst.rows-10 && max(box[i].size.width,box[i].size.height)/min(box[i].size.width,box[i].size.height)<3){
+			centre = Point(box[i].center.x,box[i].center.y);			
+			circle(dst, centre ,5,Scalar(0,255,0),-1,8); 
+			for(int j=0;j<4;j++) line(dst,vtx[j],vtx[(j+1)%4],Scalar(0,255,0));
+		}
+//		cout << typeid(box[i].center).name() << endl;
+		conner.clear();
+	}
+
+//	if(min_element(conner)>10){ 
+				//&& max_element(box[i].x) < dst.size[1]-10 && max_element(box[i].y)<dst.size[0]-10 && max(box[i].size.width,box[i].size.height)/min(box[i].size.width,box[i].size.height)<3)
+			//circle(dst, Point(box[i].center.x,box[i].center.y),5,Scalar(0,255,0),-1,8); //plot center point on dst
+//	}
+//	cout << conner.size() << endl;
+return centre;
+}
+
+////////////////////////////////////////////////////////////////////////////
+void detector::feature_extract(Mat img)
+{
+	
+}
+
+
+//vector<Rect> result(5);
+Mat org, gray, gauss, thresh, dilated, dst, element;
+int num_obj = 0;
+
+//vector<Rect> Track_rec(10);//create container
+
+int main(int argc, char* argv[]){
+
+		
+	// Create KCFTracker object
+//	vector<KCFTracker> tracker(10);
+//	vector<Rect> result(10);
+
+//	char imgname[100];
+//	string path = "./";
+//	char key;
+	int width = 640;
+	int height = 480;
+	//creat single camera
+	//VideoCapture cam(2);
+
+	detector detect;
+	namedWindow("img");
+//	sprintf(imgname,"%d.jpg");
+//	path = path + imgname;
+	org = imread("1.jpg", CV_LOAD_IMAGE_COLOR);
+	resize(org,org,Size(width,height));
+//	cout << org.channels() << endl;
+	dst = org.clone();
+	cvtColor(org.clone(), gray, COLOR_BGR2GRAY);
+	GaussianBlur(gray, gauss, Size(5,5), 0, 0);
+	element = getStructuringElement(MORPH_ELLIPSE, Size(4,4));
+	adaptiveThreshold(gauss, thresh, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 3, 2);
+	dilate(thresh, dilated, element);
+	Point centre = detect.contours(dilated, dst);
+	imshow("img",dst);
+//	waitKey(0);
+//	if(!cam.isOpened()) cout << "single fail" << endl;
+//	else{
+//		while(1){
+//			cout << "single success" << endl;
+//			cam >> org;
+//			if(org.empty()) break;	
+//			imshow("img",org);
+//			waitKey(1);
+//		}
+//	return 0;
+//	}
+
+
+//	for (int i = 0;i < num_obj;i++){
+//		tracker[i]= KCFTracker(HOG, FIXEDWINDOW, MULTISCALE, LAB);
+//		tracker[i].init( Track_rec[i], org );
+//		rectangle( org, Track_rec[i].tl(), Track_rec[i].br(), Scalar( 0, 255, 255 ), 1, 8 );
+//	}	
+//    cout<<"KCF initialized"<<endl;
+//
+//	// Frame readed
+//	Mat frame, frame_dep, frame_dis;
+//	char key;
+    Point  tar1_cen, tar2_cen;
+    float x_dis, y_dis;
+//
+//    // Output video
+//    char EXT[] = "MJPG";
+//    int ex1 = EXT[0] | (EXT[1] << 8) | (EXT[2] << 16) | (EXT[3] << 24);
+//    VideoWriter writer;
+//    if(argv[1]!="NONE"){
+//        writer.open(argv[1], ex1, 25, cv::Size(width, height), true);
+//        if(!writer.isOpened()){
+//            cout << "Can not open the output video for write" << endl;
+//        }
+//    }
+//
+	// UART
+      unsigned char x_byte, y_byte, x_step, y_step, x_dir, y_dir;
+      unsigned char start=191; // 1011 1111
+	  unsigned char end=128; // 1000 0000
+	  unsigned char x_axis=0; // 0000 0000
+	  unsigned char y_axis=64; //0100 0000
+	  bool uart_open_flag, uart_init_flag;
+	  int send_flag;
+	  vector<char> send_list;
+	  Uart uart("ttyS0", 115200);
+	  uart_open_flag = uart.openFile();
+	  if (uart_open_flag == false)
+		cout<< "UART fails to open "<<endl;
+	  uart_init_flag = uart.initPort();
+	  if (uart_init_flag == false)
+		cout<< "UART fails to be inited "<<endl;
+
+	tar1_cen = centre;
+
+//	bool success;
+//    while (true){
+//		// get frames
+//		if(cam.isOpened()){ 
+//			success = cam.read(frame);
+//			if(!success) exit(0);
+//				
+//            // Update tracker
+//            for (int i =0;i< num_obj;i++){
+//                result[i] = tracker[i].update(frame);
+//                rectangle( frame, result[i].tl(),result[i].br(), Scalar( 0, 255, 255 ), 1, 8 );
+//            }
+//            tar1_cen = Point((result[0].tl().x+result[0].br().x)/2, (result[0].tl().y+result[0].br().y)/2);
+//            tar2_cen = Point((result[1].tl().x+result[1].br().x)/2, (result[1].tl().y+result[1].br().y)/2);
+//            x_dis = 31.0 * (tar1_cen.x - tar2_cen.x) / width;
+//            y_dis = 31.0 * (tar1_cen.y - tar2_cen.y) / height;
+//            x_step = (unsigned char)abs(x_dis);
+//            y_step = (unsigned char)abs(y_dis);
+//            if(x_dis > 0) x_dir = 0;
+//            else x_dir = 32;
+//            if(y_dis > 0) y_dir = 0;
+//            else y_dir = 32;
+//            
+//            x_byte = x_axis | x_dir | x_step;
+//            y_byte = y_axis | y_dir | y_step;
+//            cout<< (int)x_byte << ", "<< (int)y_byte <<endl;
+//
+//            if (uart_open_flag && uart_init_flag) {
+                send_list.clear();
+//                send_list.push_back(start);
+//                send_list.push_back(x_byte);
+//                send_list.push_back(y_byte);
+//                send_list.push_back(end);
+				send_list.push_back(centre.x);
+				send_list.push_back(centre.y);
+                send_flag = uart.send(send_list);
+//				cout <<centre.x<<", "<<centre.y << endl;
+//                cout << "Send i BYTE: " << send_flag << endl;
+//            }
+//
+//            if (!SILENT){
+//                imshow("img", frame);
+//			}
+//
+//            if(writer.isOpened()){
+//                writer << frame;
+//            }
+//            key = waitKey(1);
+//            if (key == 27)
+//                break;
+//            else if (key == 32){
+//                while(1){
+//                    char ch = waitKey(10);
+//                    if (ch == 32){
+//                        break;
+//                    }
+//                }
+//            }
+//        }
+//	}
+//	
+	uart.closeFile();
+//    if(writer.isOpened()){
+//        writer.release();
+//    }
+    return 0;
+}
