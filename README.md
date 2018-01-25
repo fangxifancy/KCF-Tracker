@@ -5,10 +5,9 @@ $ sudo chmod 777 /dev/ttyUSB0
 # check the number of single camera
 $ v4l2-ctl -d /dev/video0(or1or2) --all
 # run the code
-$ ./sin num ../zed.avi ../single.avi hog multiwindow show...
-
+$ ./sin num ../zed.avi ../single.avi hog multiwindow show...etc
+//////////////////////////////////chenxingyusean////////////////////////////////////
 # Relative Tracker
-
 ## Describe
 This project aims to track two objects, then return their relative image coordinates and optical parallax.
 
