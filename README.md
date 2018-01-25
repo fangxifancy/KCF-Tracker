@@ -1,4 +1,4 @@
-# 3D-KCF-Tracker
+# KCF-Tracker
 Use ZED and single camera to track
 # After connecting to uart
 $ sudo chmod 777 /dev/ttyUSB0
